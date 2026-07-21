@@ -1,0 +1,18 @@
+{# Bootstrap 5 form-field renderer: label, control classes, inline errors.
+   Usage: {% from "partials/_form_macros.html" import render_field %} #}
+{% macro render_field(field) %}
+  {% if field.type == "BooleanField" %}
+    <div class="form-check mb-3">
+      {{ field(class="form-check-input" + (" is-invalid" if field.errors else "")) }}
+      {{ field.label(class="form-check-label") }}
+      {% for error in field.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+    </div>
+  {% else %}
+    <div class="mb-3">
+      {{ field.label(class="form-label") }}
+      {% set control_class = "form-select" if field.type == "SelectField" else "form-control" %}
+      {{ field(class=control_class + (" is-invalid" if field.errors else "")) }}
+      {% for error in field.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}

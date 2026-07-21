@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import render_field %}
+{% from "partials/_badges.html" import status_badge, severity_badge, priority_badge, platform_icon %}
+
+{% block title %}{{ defect.defect_key }} · {{ config.APP_NAME }}{% endblock %}
+
+{% macro render_comment(comment, children_map, depth=0) %}
+<div class="d-flex gap-2 {{ 'ms-4 mt-2' if depth else 'mt-3' }}">
+  <div class="activity-icon bg-secondary-subtle text-secondary flex-shrink-0"><i class="bi bi-person"></i></div>
+  <div class="flex-grow-1">
+    <div class="small">
+      <strong>{{ comment.author.full_name }}</strong>
+      <span class="text-body-secondary">· {{ comment.created_at | timeago }}</span>
+      {% if comment.author_id == current_user.id or current_user.is_admin %}
+      <form method="post" action="{{ url_for('defects.delete_comment', comment_id=comment.id) }}"
+            class="d-inline float-end"
+            onsubmit="return confirm('Delete this comment (and its replies)?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-link btn-sm text-danger p-0" title="Delete comment">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="small defect-text">{{ comment.body }}</div>
+    {% if depth < 4 %}
+    <details class="mt-1">
+      <summary class="small text-body-secondary reply-toggle">Reply</summary>
+      <form method="post" action="{{ url_for('defects.add_comment', defect_id=defect.id) }}" class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+        <textarea name="body" class="form-control form-control-sm" rows="2" required
+                  placeholder="Reply to {{ comment.author.full_name }}…"></textarea>
+        <button class="btn btn-sm btn-outline-primary mt-1">Reply</button>
+      </form>
+    </details>
+    {% endif %}
+    {% for child in children_map.get(comment.id, []) %}
+      {{ render_comment(child, children_map, depth + 1) }}
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+      <h1 class="h4 mb-0">
+        <span class="text-body-secondary">{{ defect.defect_key }}</span> · {{ defect.title }}
+      </h1>
+    </div>
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      {{ status_badge(defect.status) }}
+      {{ severity_badge(defect.severity) }}
+      {{ priority_badge(defect.priority) }}
+      {% if defect.criticality %}
+        <span class="badge border text-body-secondary">Criticality: {{ defect.criticality.value }}</span>
+      {% endif %}
+      {{ platform_icon(defect.platform) }}
+      <span class="text-body-secondary small">· {{ defect.environment.value }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('defects.edit_defect', defect_id=defect.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    {% if current_user.is_admin %}
+    <form method="post" action="{{ url_for('defects.delete_defect', defect_id=defect.id) }}"
+          onsubmit="return confirm('Permanently delete {{ defect.defect_key }} with its comments, attachments and history?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if defect.duplicate_of %}
+<div class="alert alert-warning py-2">
+  <i class="bi bi-files me-1"></i>Duplicate of
+  <a href="{{ url_for('defects.detail', defect_key=defect.duplicate_of.defect_key) }}" class="alert-link">
+    {{ defect.duplicate_of.defect_key }}</a> — {{ defect.duplicate_of.title }}
+</div>
+{% endif %}
+{% if defect.duplicates %}
+<div class="alert alert-light border py-2 small">
+  <i class="bi bi-files me-1"></i>Known duplicates:
+  {% for dup in defect.duplicates %}
+    <a href="{{ url_for('defects.detail', defect_key=dup.defect_key) }}">{{ dup.defect_key }}</a>{{ ", " if not loop.last }}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-card-text me-2"></i>Description</div>
+      <div class="card-body">
+        <div class="defect-text">{{ defect.description or "—" }}</div>
+        {% if defect.expected_result or defect.actual_result %}
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <div class="small fw-semibold text-success mb-1"><i class="bi bi-check-circle me-1"></i>Expected</div>
+            <div class="defect-text small">{{ defect.expected_result or "—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small fw-semibold text-danger mb-1"><i class="bi bi-x-circle me-1"></i>Actual</div>
+            <div class="defect-text small">{{ defect.actual_result or "—" }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% if defect.steps_to_reproduce %}
+        <div class="mt-3">
+          <div class="small fw-semibold mb-1"><i class="bi bi-list-ol me-1"></i>Steps to reproduce</div>
+          <div class="defect-text small">{{ defect.steps_to_reproduce }}</div>
+        </div>
+        {% endif %}
+        {% if defect.root_cause %}
+        <div class="mt-3">
+          <div class="small fw-semibold mb-1"><i class="bi bi-search me-1"></i>Root cause</div>
+          <div class="defect-text small">{{ defect.root_cause }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-paperclip me-2"></i>Attachments
+        <span class="badge text-bg-secondary ms-1">{{ defect.attachments | length }}</span>
+      </div>
+      <div class="card-body">
+        {% set images = defect.attachments | selectattr("kind.value", "equalto", "Screenshot") | list %}
+        {% if images %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for attachment in images %}
+          <a href="{{ url_for('defects.download_attachment', attachment_id=attachment.id, inline=1) }}"
+             target="_blank" title="{{ attachment.original_filename }}">
+            <img src="{{ url_for('defects.download_attachment', attachment_id=attachment.id, inline=1) }}"
+                 class="attachment-thumb rounded border" alt="{{ attachment.original_filename }}">
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% for attachment in defect.attachments %}
+        <div class="d-flex align-items-center gap-2 py-1 border-top small">
+          {% set kind_icons = {"Screenshot": "bi-image", "Video": "bi-camera-video", "Log": "bi-file-text", "Other": "bi-file-earmark"} %}
+          <i class="bi {{ kind_icons.get(attachment.kind.value, 'bi-file-earmark') }} text-body-secondary"></i>
+          <span class="flex-grow-1 text-truncate">{{ attachment.original_filename }}</span>
+          <span class="badge text-bg-light border">{{ attachment.kind.value }}</span>
+          <span class="text-body-secondary text-nowrap">{{ attachment.size_bytes | humansize }}</span>
+          <span class="text-body-secondary text-nowrap d-none d-md-inline">
+            {{ attachment.uploaded_by.full_name }} · {{ attachment.created_at | timeago }}
+          </span>
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{{ url_for('defects.download_attachment', attachment_id=attachment.id) }}"
+             title="Download"><i class="bi bi-download"></i></a>
+          {% if attachment.uploaded_by_id == current_user.id or current_user.is_admin %}
+          <form method="post" action="{{ url_for('defects.delete_attachment', attachment_id=attachment.id) }}"
+                onsubmit="return confirm('Delete {{ attachment.original_filename }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+          </form>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="text-body-secondary small mb-0">No attachments yet.</p>
+        {% endfor %}
+        <form method="post" action="{{ url_for('defects.upload_attachments', defect_id=defect.id) }}"
+              enctype="multipart/form-data" class="d-flex gap-2 align-items-center mt-3">
+          {{ upload_form.hidden_tag() }}
+          {{ upload_form.files(class="form-control form-control-sm", multiple=True) }}
+          {{ upload_form.submit(class="btn btn-sm btn-outline-primary") }}
+        </form>
+        <div class="form-text">
+          Screenshots, videos and logs — {{ config.ALLOWED_UPLOAD_EXTENSIONS | sort | join(", ") }}.
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-chat-dots me-2"></i>Comments
+        <span class="badge text-bg-secondary ms-1">{{ defect.comments | length }}</span>
+      </div>
+      <div class="card-body">
+        {% for comment in comment_roots %}
+          {{ render_comment(comment, comment_children) }}
+        {% else %}
+          <p class="text-body-secondary small mb-0">No comments yet — start the discussion.</p>
+        {% endfor %}
+        <form method="post" action="{{ url_for('defects.add_comment', defect_id=defect.id) }}"
+              class="mt-3 border-top pt-3" novalidate>
+          {{ comment_form.hidden_tag() }}
+          {{ render_field(comment_form.body) }}
+          {{ comment_form.submit(class="btn btn-primary btn-sm") }}
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2"></i>History</div>
+      <ul class="list-group list-group-flush">
+        {% for entry in activities %}
+        <li class="list-group-item py-2 small d-flex gap-2">
+          <span class="text-body-secondary text-nowrap">{{ entry.created_at | localdt }}</span>
+          <span>
+            <strong>{{ entry.actor.full_name }}</strong>
+            {% if entry.action.value == "created" %} reported this defect
+            {% elif entry.action.value == "status_changed" %}
+              moved {{ entry.old_value }} <i class="bi bi-arrow-right small"></i> {{ entry.new_value }}
+            {% elif entry.action.value == "assigned" %}
+              set {{ entry.field | replace("_", " ") }} to {{ entry.new_value }}
+            {% elif entry.action.value == "commented" %} commented
+            {% elif entry.action.value == "attachment_added" %} attached {{ entry.note }}
+            {% elif entry.action.value == "attachment_removed" %} removed attachment {{ entry.note }}
+            {% else %}
+              changed {{ entry.field | replace("_", " ") }}:
+              {{ entry.old_value or "—" }} <i class="bi bi-arrow-right small"></i> {{ entry.new_value or "—" }}
+            {% endif %}
+            {% if entry.note and entry.action.value == "status_changed" %}
+              <span class="text-body-secondary">— “{{ entry.note }}”</span>
+            {% endif %}
+          </span>
+        </li>
+        {% else %}
+        <li class="list-group-item text-body-secondary small">No history recorded.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-arrow-repeat me-2"></i>Workflow</div>
+      <div class="card-body">
+        <div class="mb-2 small text-body-secondary">Current status: {{ status_badge(defect.status) }}</div>
+        {% if transitions %}
+        <form method="post" action="{{ url_for('defects.change_status', defect_id=defect.id) }}" id="status-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label small text-body-secondary" for="to_status">Move to</label>
+          <select class="form-select mb-2" name="to_status" id="to_status" required>
+            <option value="" selected disabled>Choose status…</option>
+            {% for target in transitions %}
+            <option value="{{ target.value }}"
+                    data-terminal="{{ 1 if target.is_terminal else 0 }}"
+                    data-duplicate="{{ 1 if target.value == 'Duplicate' else 0 }}">{{ target.value }}</option>
+            {% endfor %}
+          </select>
+          <div id="resolution-block" class="d-none">
+            <label class="form-label small text-body-secondary" for="resolution_type">Resolution</label>
+            <select class="form-select mb-2" name="resolution_type" id="resolution_type">
+              <option value="">Automatic</option>
+              {% for resolution in resolutions %}
+                <option value="{{ resolution.value }}">{{ resolution.value }}</option>
+              {% endfor %}
+            </select>
+            <div id="duplicate-block" class="d-none">
+              <label class="form-label small text-body-secondary" for="duplicate_of_key">Duplicate of</label>
+              <input class="form-control mb-2" name="duplicate_of_key" id="duplicate_of_key" placeholder="BUG-012">
+            </div>
+            <label class="form-label small text-body-secondary" for="root_cause">Root cause</label>
+            <textarea class="form-control mb-2" name="root_cause" id="root_cause" rows="2">{{ defect.root_cause or "" }}</textarea>
+          </div>
+          <input class="form-control form-control-sm mb-2" name="note" placeholder="Note (optional)">
+          <button class="btn btn-primary w-100">Apply transition</button>
+        </form>
+        {% else %}
+        <p class="text-body-secondary small mb-0">No transitions available from this status.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>Details</div>
+      <div class="card-body">
+        <dl class="row mb-0 small defect-meta">
+          <dt class="col-5">Module</dt>
+          <dd class="col-7">{{ defect.module.name }}{% if defect.feature %} · {{ defect.feature.name }}{% endif %}</dd>
+          <dt class="col-5">Story</dt>
+          <dd class="col-7">
+            {% if defect.story %}
+              <a href="{{ url_for('sprints.tree', story=defect.story.id) }}">{{ defect.story.key }}</a>
+              · {{ defect.story.title }}
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">Sprint</dt>
+          <dd class="col-7">
+            {% if defect.sprint %}
+              <a href="{{ url_for('sprints.detail', sprint_id=defect.sprint.id) }}">{{ defect.sprint.name }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">Reporter</dt>
+          <dd class="col-7">
+            <a href="{{ url_for('developers.profile', user_id=defect.reporter_id) }}"
+               class="text-decoration-none">{{ defect.reporter.full_name }}</a>
+          </dd>
+          <dt class="col-5">Assigned QA</dt>
+          <dd class="col-7">
+            {% if defect.assigned_qa %}
+              <a href="{{ url_for('developers.profile', user_id=defect.assigned_qa_id) }}"
+                 class="text-decoration-none">{{ defect.assigned_qa.full_name }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">Developer</dt>
+          <dd class="col-7">
+            {% if defect.assigned_developer %}
+              <a href="{{ url_for('developers.profile', user_id=defect.assigned_developer_id) }}"
+                 class="text-decoration-none">{{ defect.assigned_developer.full_name }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">App version</dt>
+          <dd class="col-7">{{ defect.app_version or "—" }}{% if defect.build_number %} ({{ defect.build_number }}){% endif %}</dd>
+          <dt class="col-5">Device / OS</dt>
+          <dd class="col-7">{{ defect.device_name or "—" }}{% if defect.os_version %} · {{ defect.os_version }}{% endif %}</dd>
+          <dt class="col-5">ETA</dt>
+          <dd class="col-7">{{ defect.eta.strftime("%d %b %Y") if defect.eta else "—" }}</dd>
+          <dt class="col-5">Reported</dt>
+          <dd class="col-7">{{ defect.created_at | localdt }}</dd>
+          <dt class="col-5">Updated</dt>
+          <dd class="col-7">{{ defect.updated_at | timeago }}</dd>
+          <dt class="col-5">Resolved</dt>
+          <dd class="col-7">{{ defect.resolved_at | localdt if defect.resolved_at else "—" }}</dd>
+          <dt class="col-5">Resolution</dt>
+          <dd class="col-7">{{ defect.resolution_type.value if defect.resolution_type else "—" }}</dd>
+          <dt class="col-5">Regression</dt>
+          <dd class="col-7">
+            {% if defect.regression_required %}
+              Required — {{ defect.regression_status.value if defect.regression_status else "not started" }}
+            {% else %}Not required{% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-tags me-2"></i>Labels &amp; tags</div>
+      <div class="card-body">
+        {% if defect.labels %}
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          {% for label in defect.labels %}
+            <span class="badge" style="background-color: {{ label.color }};">{{ label.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if defect.tags %}
+        <div class="d-flex flex-wrap gap-1">
+          {% for tag in defect.tags %}
+            <span class="badge text-bg-light border">#{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if not defect.labels and not defect.tags %}
+        <p class="text-body-secondary small mb-0">None yet — add them from Edit.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/defects.js') }}"></script>
+{% endblock %}

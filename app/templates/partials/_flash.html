@@ -1,0 +1,14 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-4">
+      {% for category, message in messages %}
+        {# Map Flask's default/legacy categories onto Bootstrap contextual classes. #}
+        {% set bs_category = {"error": "danger", "message": "info"}.get(category, category) %}
+        <div class="alert alert-{{ bs_category }} alert-dismissible fade show alert-auto-dismiss shadow-sm" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

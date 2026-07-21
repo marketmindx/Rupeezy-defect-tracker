@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime artefacts
+instance/
+logs/
+uploads/*
+!uploads/.gitkeep
+
+# Environment / secrets
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

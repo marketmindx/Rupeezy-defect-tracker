@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Reports · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="h3 mb-0"><i class="bi bi-file-earmark-bar-graph me-2"></i>Reports</h1>
+  <p class="text-body-secondary small mb-0">
+    CSV downloads open directly in Google Sheets (File → Import, or drag into Drive). PDFs open in the browser.
+  </p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-filetype-csv me-2"></i>Defect export — CSV for Google Sheets
+      </div>
+      <div class="card-body">
+        <form method="get" action="{{ url_for('reports.defects_csv') }}" class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small text-body-secondary" for="rep-state">Scope</label>
+            <select class="form-select" id="rep-state" name="state">
+              <option value="">All defects</option>
+              <option value="open">Open only</option>
+              <option value="done">Completed only</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-body-secondary" for="rep-severity">Severity</label>
+            <select class="form-select" id="rep-severity" name="severity">
+              <option value="">All</option>
+              {% for severity in severities %}
+                <option value="{{ severity.value }}">{{ severity.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-body-secondary" for="rep-sprint">Sprint</label>
+            <select class="form-select" id="rep-sprint" name="sprint">
+              <option value="">All</option>
+              {% for sprint in sprints %}
+                <option value="{{ sprint.id }}">{{ sprint.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary"><i class="bi bi-download me-1"></i>Download CSV</button>
+            <span class="form-text d-block mt-2">
+              Need more filters? Use the <a href="{{ url_for('defects.list_defects') }}">defect list</a> —
+              its <strong>Export CSV</strong> button keeps whatever filters you applied.
+            </span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-people me-2"></i>Team workload — CSV for Google Sheets
+      </div>
+      <div class="card-body d-flex flex-column">
+        <p class="text-body-secondary small">
+          One row per developer and QA engineer: open / critical / overdue counts,
+          resolved totals, average resolution time, QA queue and reported figures.
+        </p>
+        <div class="mt-auto">
+          <a class="btn btn-primary" href="{{ url_for('reports.developers_csv') }}">
+            <i class="bi bi-download me-1"></i>Download CSV
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-filetype-pdf me-2"></i>Sprint report — PDF
+      </div>
+      <div class="card-body">
+        <p class="text-body-secondary small">
+          Metrics, status breakdown, stories and the full defect table for one sprint —
+          ready to share with management.
+        </p>
+        <form method="get" id="sprint-pdf-form" class="d-flex gap-2 align-items-center">
+          <select class="form-select w-auto" id="sprint-pdf-select">
+            {% for sprint in sprints %}
+              <option value="{{ url_for('reports.sprint_pdf', sprint_id=sprint.id) }}"
+                      {{ 'selected' if sprint.is_current }}>{{ sprint.name }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary" {{ 'disabled' if not sprints }}>
+            <i class="bi bi-file-earmark-pdf me-1"></i>Open PDF
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-filetype-pdf me-2"></i>QA summary — PDF
+      </div>
+      <div class="card-body d-flex flex-column">
+        <p class="text-body-secondary small">
+          Overall picture: totals, open-by-severity chart, status table, current sprint,
+          developer workload and the top open defects.
+        </p>
+        <div class="mt-auto">
+          <a class="btn btn-primary" href="{{ url_for('reports.summary_pdf') }}" target="_blank">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Open PDF
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // The sprint PDF <select> holds the target URL; open it on submit.
+  document.getElementById("sprint-pdf-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const url = document.getElementById("sprint-pdf-select").value;
+    if (url) window.open(url, "_blank");
+  });
+</script>
+{% endblock %}

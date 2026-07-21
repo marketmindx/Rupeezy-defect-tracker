@@ -1,0 +1,125 @@
+/* ------------------------------------------------------------------------
+   Rupeezy Defect Tracker — thin custom layer on top of Bootstrap 5.
+   Prefer Bootstrap utilities in markup; add rules here only when a utility
+   can't express them.
+------------------------------------------------------------------------ */
+
+.card {
+  border-radius: 0.5rem;
+}
+
+.navbar-brand .bi {
+  vertical-align: -0.1em;
+}
+
+/* Fixed width so the button doesn't jump when the sun/moon icon swaps. */
+#theme-toggle {
+  width: 2.25rem;
+}
+
+/* --- Dashboard --------------------------------------------------------- */
+
+.stat-card .stat-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.stat-card {
+  transition: transform 0.1s ease;
+}
+
+a .stat-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Charts fill this box; height is fixed so cards align in a row. */
+.chart-box {
+  position: relative;
+  height: 250px;
+}
+
+.activity-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+/* --- Defect module ------------------------------------------------------ */
+
+/* Preserve author line breaks in descriptions, steps and comments. */
+.defect-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.attachment-thumb {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+}
+
+.reply-toggle {
+  cursor: pointer;
+}
+
+.defect-meta dt {
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+}
+
+/* --- Developer directory & profiles ------------------------------------- */
+
+.avatar-circle {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  background-color: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary-text-emphasis);
+}
+
+.avatar-circle.avatar-lg {
+  width: 4rem;
+  height: 4rem;
+  font-size: 1.4rem;
+}
+
+.person-card {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.person-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bs-box-shadow) !important;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+/* --- Story tree --------------------------------------------------------- */
+
+.tree-toggle {
+  text-decoration: none;
+}
+
+.tree-toggle .bi-chevron-right {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.tree-toggle[aria-expanded="true"] .bi-chevron-right {
+  transform: rotate(90deg);
+}

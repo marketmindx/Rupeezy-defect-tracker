@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "partials/_pagination.html" import render_pagination with context %}
+
+{% block title %}Users · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>User management</h1>
+  <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i>New user
+  </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small text-body-secondary" for="q">Search</label>
+        <input type="search" class="form-control" id="q" name="q" value="{{ q }}"
+               placeholder="Username, name or email">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-body-secondary" for="role">Role</label>
+        <select class="form-select" id="role" name="role">
+          <option value="">All roles</option>
+          {% for role in roles %}
+            <option value="{{ role.name }}" {{ "selected" if role.name == role_param }}>{{ role.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-body-secondary" for="status">Status</label>
+        <select class="form-select" id="status" name="status">
+          <option value="all" {{ "selected" if status == "all" }}>All</option>
+          <option value="active" {{ "selected" if status == "active" }}>Active</option>
+          <option value="inactive" {{ "selected" if status == "inactive" }}>Inactive</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100">
+          <i class="bi bi-funnel me-1"></i>Apply
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Last sign-in</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set role_colors = {"Admin": "dark", "QA": "info", "Developer": "primary"} %}
+        {% for row in pagination.items %}
+        <tr>
+          <td>
+            <strong>{{ row.username }}</strong>
+            <div class="small text-body-secondary">{{ row.full_name }}</div>
+          </td>
+          <td>{{ row.email }}</td>
+          <td><span class="badge text-bg-{{ role_colors.get(row.role.value, 'secondary') }}">{{ row.role.value }}</span></td>
+          <td>
+            {% if row.is_active %}
+              <span class="badge text-bg-success">Active</span>
+            {% else %}
+              <span class="badge text-bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-body-secondary small">{{ row.last_login_at | localdt }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('users.edit_user', user_id=row.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="Edit">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% if row.id != current_user.id %}
+            <form method="post" action="{{ url_for('users.toggle_active', user_id=row.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit"
+                      class="btn btn-sm btn-outline-{{ 'danger' if row.is_active else 'success' }}"
+                      title="{{ 'Deactivate' if row.is_active else 'Re-activate' }}">
+                <i class="bi bi-person-{{ 'dash' if row.is_active else 'check' }}"></i>
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('users.delete_user', user_id=row.id) }}" class="d-inline"
+                  onsubmit="return confirm('Permanently delete {{ row.username }}? This cannot be undone. Users with defect or activity history can only be deactivated.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-body-secondary py-4">No users match these filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.total %}
+  <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="small text-body-secondary">
+      Showing {{ pagination.first }}&ndash;{{ pagination.last }} of {{ pagination.total }}
+    </span>
+    {{ render_pagination(pagination, "users.list_users") }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

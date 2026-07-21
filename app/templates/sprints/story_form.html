@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import render_field %}
+
+{% block title %}{{ heading }} · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <h1 class="h3 mb-0"><i class="bi bi-journal-text me-2"></i>{{ heading }}</h1>
+      <a href="{{ url_for('sprints.tree') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Story tree
+      </a>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          {{ render_field(form.title) }}
+          {{ render_field(form.description) }}
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.epic_id) }}</div>
+            <div class="col-md-6">{{ render_field(form.sprint_id) }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.status) }}</div>
+            <div class="col-md-6">{{ render_field(form.story_points) }}</div>
+          </div>
+          {{ form.submit(class="btn btn-primary") }}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import render_field %}
+
+{% block title %}{{ heading }} · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+  <h1 class="h3 mb-0"><i class="bi bi-bug me-2"></i>{{ heading }}</h1>
+  <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) if defect else url_for('defects.list_defects') }}"
+     class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">What happened</div>
+        <div class="card-body">
+          {{ render_field(form.title) }}
+          {{ render_field(form.description) }}
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.expected_result) }}</div>
+            <div class="col-md-6">{{ render_field(form.actual_result) }}</div>
+          </div>
+          {{ render_field(form.steps_to_reproduce) }}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Environment</div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">{{ render_field(form.platform) }}</div>
+            <div class="col-md-3">{{ render_field(form.environment) }}</div>
+            <div class="col-md-3">{{ render_field(form.app_version) }}</div>
+            <div class="col-md-3">{{ render_field(form.build_number) }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.os_version) }}</div>
+            <div class="col-md-6">{{ render_field(form.device_name) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Labels &amp; tags</div>
+        <div class="card-body">
+          <div class="mb-3">
+            {{ form.labels.label(class="form-label") }}
+            <div class="d-flex flex-wrap gap-3 label-checkboxes">
+              {% for subfield in form.labels %}
+                <div class="form-check mb-0">
+                  {{ subfield(class="form-check-input") }}
+                  {{ subfield.label(class="form-check-label") }}
+                </div>
+              {% else %}
+                <span class="text-body-secondary small">No labels defined yet.</span>
+              {% endfor %}
+            </div>
+          </div>
+          {{ render_field(form.tags) }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Classification</div>
+        <div class="card-body">
+          {{ render_field(form.severity) }}
+          {{ render_field(form.priority) }}
+          {{ render_field(form.criticality) }}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Placement</div>
+        <div class="card-body">
+          {{ render_field(form.module_id) }}
+          <div class="mb-3">
+            {{ form.feature_id.label(class="form-label") }}
+            <select name="feature_id" id="feature_id"
+                    class="form-select{{ ' is-invalid' if form.feature_id.errors }}">
+              <option value="0">—</option>
+              {% for feature in ref["features"] %}
+                <option value="{{ feature.id }}" data-module="{{ feature.module_id }}"
+                        {{ 'selected' if form.feature_id.data == feature.id }}>{{ feature.name }}</option>
+              {% endfor %}
+            </select>
+            {% for error in form.feature_id.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          {{ render_field(form.story_id) }}
+          {{ render_field(form.sprint_id) }}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">People &amp; planning</div>
+        <div class="card-body">
+          {{ render_field(form.assigned_qa_id) }}
+          {{ render_field(form.assigned_developer_id) }}
+          {{ render_field(form.eta) }}
+          {{ render_field(form.regression_required) }}
+          {{ render_field(form.regression_status) }}
+        </div>
+      </div>
+
+      <div class="d-grid gap-2">
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) if defect else url_for('defects.list_defects') }}"
+           class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/defects.js') }}"></script>
+{% endblock %}

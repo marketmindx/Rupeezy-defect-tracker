@@ -1,0 +1,31 @@
+{# Pagination control that preserves current query args.
+   Import WITH CONTEXT (it reads `request`):
+   {% from "partials/_pagination.html" import render_pagination with context %} #}
+{% macro render_pagination(pagination, endpoint) %}
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Page navigation">
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link"
+           href="{{ url_for(endpoint, **dict(request.args.to_dict(), page=pagination.prev_num or 1)) }}"
+           aria-label="Previous">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page }}">
+            <a class="page-link"
+               href="{{ url_for(endpoint, **dict(request.args.to_dict(), page=p)) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link"
+           href="{{ url_for(endpoint, **dict(request.args.to_dict(), page=pagination.next_num or pagination.pages)) }}"
+           aria-label="Next">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+{% endmacro %}

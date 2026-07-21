@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · {{ config.APP_NAME }}{% endblock %}
+
+{% macro chart_card(canvas_id, title, icon) %}
+<div class="card shadow-sm h-100">
+  <div class="card-header fw-semibold"><i class="bi {{ icon }} me-2"></i>{{ title }}</div>
+  <div class="card-body">
+    <div class="chart-box"><canvas id="{{ canvas_id }}"></canvas></div>
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+{% set defects_live = endpoint_exists('defects.list_defects') %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <p class="text-body-secondary small mb-0">Quality overview across Android, iOS, Web and API</p>
+  </div>
+</div>
+
+{# ---- stat tiles ---------------------------------------------------------- #}
+<div class="row g-3 mb-3">
+  {% for tile in tiles %}
+  <div class="col-sm-6 col-xl-3">
+    {% if defects_live %}<a href="{{ tile.href }}" class="text-decoration-none text-reset">{% endif %}
+    <div class="card shadow-sm stat-card h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon bg-{{ tile.color }}-subtle text-{{ tile.color }}">
+          <i class="bi {{ tile.icon }}"></i>
+        </div>
+        <div>
+          <div class="fs-3 fw-bold lh-1">{{ tile.value }}</div>
+          <div class="text-body-secondary small">{{ tile.label }}</div>
+          {% if tile.sub %}<div class="small text-{{ tile.color }}">{{ tile.sub }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% if defects_live %}</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{# ---- quick filters -------------------------------------------------------- #}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+  <span class="text-body-secondary small me-1"><i class="bi bi-funnel me-1"></i>Quick filters:</span>
+  {% for chip in quick_filters %}
+    {% if defects_live %}
+      <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ chip.href }}">{{ chip.label }}</a>
+    {% else %}
+      <span class="btn btn-sm btn-outline-secondary rounded-pill disabled"
+            title="Links activate with the defect module (Phase 5)">{{ chip.label }}</span>
+    {% endif %}
+  {% endfor %}
+</div>
+
+{# ---- trend + open/closed --------------------------------------------------- #}
+<div class="row g-3 mb-3">
+  <div class="col-xl-8">{{ chart_card("chart-trend", "Bug trend — last 30 days", "bi-graph-up") }}</div>
+  <div class="col-xl-4">{{ chart_card("chart-open-closed", "Open vs completed", "bi-pie-chart") }}</div>
+</div>
+
+{# ---- distributions ---------------------------------------------------------- #}
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">{{ chart_card("chart-severity", "Open bugs by severity", "bi-thermometer-half") }}</div>
+  <div class="col-lg-4">{{ chart_card("chart-priority", "Open bugs by priority", "bi-sort-numeric-down") }}</div>
+  <div class="col-lg-4">{{ chart_card("chart-aging", "Open bug aging", "bi-hourglass-split") }}</div>
+</div>
+
+{# ---- workload + modules ------------------------------------------------------ #}
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">{{ chart_card("chart-workload", "Developer workload (open bugs)", "bi-people") }}</div>
+  <div class="col-lg-6">{{ chart_card("chart-modules", "Open bugs by module", "bi-boxes") }}</div>
+</div>
+
+{# ---- sprint progress + per-sprint chart --------------------------------------- #}
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-flag me-2"></i>Sprint progress</div>
+      <div class="card-body">
+        {% if sprint %}
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+            <div>
+              <h2 class="h5 mb-0">
+                {% if endpoint_exists('sprints.detail') %}
+                  <a href="{{ url_for('sprints.detail', sprint_id=sprint.id) }}"
+                     class="text-decoration-none text-reset">{{ sprint.name }}</a>
+                {% else %}{{ sprint.name }}{% endif %}
+              </h2>
+              {% if sprint.goal %}<div class="text-body-secondary small">{{ sprint.goal }}</div>{% endif %}
+            </div>
+            <span class="badge text-bg-primary">Sprint {{ sprint.number }}</span>
+          </div>
+          <div class="text-body-secondary small mb-3">
+            <i class="bi bi-calendar3 me-1"></i>
+            {{ sprint.start_date.strftime('%d %b') }} &ndash; {{ sprint.end_date.strftime('%d %b %Y') }}
+            <span class="badge text-bg-{{ 'warning' if sprint.days_left <= 3 else 'secondary' }} ms-2">
+              {{ sprint.days_left }} day{{ 's' if sprint.days_left != 1 }} left
+            </span>
+          </div>
+          <div class="d-flex justify-content-between small mb-1">
+            <span>{{ sprint.done }} of {{ sprint.total }} defects completed</span>
+            <span class="fw-semibold">{{ sprint.completion_pct }}%</span>
+          </div>
+          <div class="progress mb-3" role="progressbar" aria-label="Sprint completion"
+               aria-valuenow="{{ sprint.completion_pct }}" aria-valuemin="0" aria-valuemax="100"
+               style="height: .6rem">
+            <div class="progress-bar bg-success" style="width: {{ sprint.completion_pct }}%"></div>
+          </div>
+          <div class="text-body-secondary small">
+            <i class="bi bi-journal-text me-1"></i>{{ sprint.stories }}
+            stor{{ 'y' if sprint.stories == 1 else 'ies' }} in this sprint
+          </div>
+        {% else %}
+          <p class="text-body-secondary mb-0">
+            No sprint covers today's date. Sprint management arrives in Phase 6.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">{{ chart_card("chart-sprints", "Bugs by sprint", "bi-bar-chart-steps") }}</div>
+</div>
+
+{# ---- activity --------------------------------------------------------------- #}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2"></i>Recent activity</div>
+      <ul class="list-group list-group-flush">
+        {% for entry in recent_activity %}
+        {% set meta = activity_meta.get(entry.action.value, ("bi-pencil", "secondary")) %}
+        {% set key = entry.defect.defect_key if entry.defect else entry.entity_type ~ " #" ~ entry.entity_id %}
+        <li class="list-group-item d-flex align-items-center gap-3 py-2">
+          <div class="activity-icon bg-{{ meta[1] }}-subtle text-{{ meta[1] }} flex-shrink-0">
+            <i class="bi {{ meta[0] }}"></i>
+          </div>
+          <div class="flex-grow-1 small">
+            <strong>{{ entry.actor.full_name }}</strong>
+            {% if entry.action.value == "created" %}
+              reported <strong>{{ key }}</strong>
+            {% elif entry.action.value == "status_changed" %}
+              moved <strong>{{ key }}</strong>:
+              {{ entry.old_value }} <i class="bi bi-arrow-right small"></i> {{ entry.new_value }}
+            {% elif entry.action.value == "assigned" %}
+              assigned <strong>{{ key }}</strong> to {{ entry.new_value }}
+            {% elif entry.action.value == "commented" %}
+              commented on <strong>{{ key }}</strong>
+            {% elif entry.action.value == "deleted" %}
+              deleted <strong>{{ key }}</strong>
+            {% else %}
+              updated {{ entry.field or "details" }} on <strong>{{ key }}</strong>
+            {% endif %}
+            <span class="text-body-secondary"> · {{ entry.created_at | timeago }}</span>
+          </div>
+        </li>
+        {% else %}
+        <li class="list-group-item text-center text-body-secondary py-4">No activity recorded yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-calendar-day me-2"></i>Today's activity</div>
+      <div class="card-body">
+        <div class="row row-cols-2 g-3">
+          {% for item in today %}
+          <div class="col d-flex align-items-center gap-2">
+            <div class="activity-icon bg-{{ item.color }}-subtle text-{{ item.color }} flex-shrink-0">
+              <i class="bi {{ item.icon }}"></i>
+            </div>
+            <div>
+              <div class="fw-bold lh-1">{{ item.value }}</div>
+              <div class="small text-body-secondary">{{ item.label }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="dashboard-data" type="application/json">{{ charts | tojson }}</script>
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

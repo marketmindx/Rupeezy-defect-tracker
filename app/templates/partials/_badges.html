@@ -1,0 +1,40 @@
+{# Consistent badge rendering for defect vocabulary.
+   {% from "partials/_badges.html" import status_badge, severity_badge, priority_badge, platform_icon %} #}
+
+{% macro status_badge(status) %}
+{%- set colors = {
+    "Open": "primary", "In Progress": "info", "Ready for QA": "warning",
+    "Retest": "warning", "Verified": "success", "Closed": "dark",
+    "Rejected": "secondary", "Duplicate": "secondary", "Deferred": "secondary",
+    "Blocked": "danger", "Cannot Reproduce": "secondary",
+} -%}
+<span class="badge text-bg-{{ colors.get(status.value, 'secondary') }}">{{ status.value }}</span>
+{%- endmacro %}
+
+{% macro severity_badge(severity) %}
+{%- set colors = {"Critical": "danger", "High": "warning", "Medium": "info", "Low": "success"} -%}
+<span class="badge text-bg-{{ colors.get(severity.value, 'secondary') }}">{{ severity.value }}</span>
+{%- endmacro %}
+
+{% macro priority_badge(priority) %}
+{%- set colors = {"P0": "danger", "P1": "warning", "P2": "primary", "P3": "secondary"} -%}
+<span class="badge text-bg-{{ colors.get(priority.value, 'secondary') }}">{{ priority.value }}</span>
+{%- endmacro %}
+
+{% macro story_status_badge(status) %}
+{%- set colors = {"Open": "primary", "In Progress": "info", "Done": "success"} -%}
+<span class="badge text-bg-{{ colors.get(status.value, 'secondary') }}">{{ status.value }}</span>
+{%- endmacro %}
+
+{% macro sprint_status_badge(status) %}
+{%- set colors = {"Planned": "secondary", "Active": "primary", "Completed": "success"} -%}
+<span class="badge text-bg-{{ colors.get(status.value, 'secondary') }}">{{ status.value }}</span>
+{%- endmacro %}
+
+{% macro platform_icon(platform) %}
+{%- set icons = {"Android": "bi-android2", "iOS": "bi-apple", "Web": "bi-globe2", "API": "bi-braces"} -%}
+<span class="text-body-secondary" title="{{ platform.value }}">
+  <i class="bi {{ icons.get(platform.value, 'bi-question-circle') }}"></i>
+  <span class="d-none d-xl-inline small">{{ platform.value }}</span>
+</span>
+{%- endmacro %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "partials/_badges.html" import sprint_status_badge %}
+
+{% block title %}Sprints · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <h1 class="h3 mb-0"><i class="bi bi-flag me-2"></i>Sprints</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('sprints.tree') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-diagram-3 me-1"></i>Story tree
+    </a>
+    {% if current_user.is_admin or current_user.is_qa %}
+    <a href="{{ url_for('sprints.create_sprint') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>New sprint
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sprint</th>
+          <th>Dates</th>
+          <th>Status</th>
+          <th class="text-center">Stories</th>
+          <th style="min-width: 180px;">Defects</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set sprint = row.sprint %}
+        <tr>
+          <td class="text-body-secondary">{{ sprint.number }}</td>
+          <td>
+            <a href="{{ url_for('sprints.detail', sprint_id=sprint.id) }}"
+               class="fw-semibold text-decoration-none">{{ sprint.name }}</a>
+            {% if sprint.is_current %}<span class="badge text-bg-warning ms-1">Current</span>{% endif %}
+            {% if sprint.goal %}<div class="small text-body-secondary text-truncate" style="max-width: 320px;">{{ sprint.goal }}</div>{% endif %}
+          </td>
+          <td class="small text-body-secondary text-nowrap">
+            {{ sprint.start_date.strftime('%d %b') }} &ndash; {{ sprint.end_date.strftime('%d %b %Y') }}
+          </td>
+          <td>{{ sprint_status_badge(sprint.status) }}</td>
+          <td class="text-center">{{ row.stories }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height: .5rem;">
+                <div class="progress-bar bg-success" style="width: {{ row.pct }}%"></div>
+              </div>
+              <span class="small text-body-secondary text-nowrap">{{ row.done }}/{{ row.total }} · {{ row.pct }}%</span>
+            </div>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('sprints.detail', sprint_id=sprint.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="Open"><i class="bi bi-eye"></i></a>
+            {% if current_user.is_admin or current_user.is_qa %}
+            <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-body-secondary py-5">No sprints yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.APP_NAME }}{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%9E%3C/text%3E%3C/svg%3E">
+  <script>
+    // Apply the saved theme before first paint to avoid a light-mode flash.
+    (function () {
+      var theme = localStorage.getItem("dt-theme")
+        || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-bs-theme", theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+
+  <nav class="navbar navbar-expand-lg bg-body border-bottom sticky-top">
+    <div class="container-xxl">
+      <a class="navbar-brand fw-semibold" href="{{ url_for('main.index') }}">
+        <i class="bi bi-bug-fill text-primary me-1"></i>{{ config.APP_NAME }}
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-nav"
+              aria-controls="main-nav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="main-nav">
+        {% if current_user.is_authenticated %}
+        <ul class="navbar-nav me-auto">
+          {# Entries light up as their module lands (Phases 5–8). #}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('dashboard.') }}"
+               href="{{ url_for('dashboard.overview') }}">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('defects.') }}"
+               href="{{ url_for('defects.list_defects') }}">Defects</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('sprints.') }}"
+               href="{{ url_for('sprints.list_sprints') }}">Sprints</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('developers.') }}"
+               href="{{ url_for('developers.directory') }}">Developers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('reports.') }}"
+               href="{{ url_for('reports.index') }}">Reports</a>
+          </li>
+        </ul>
+        {% endif %}
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <button id="theme-toggle" class="btn btn-outline-secondary btn-sm" type="button"
+                  aria-label="Toggle dark mode" title="Toggle dark mode">
+            <i class="bi bi-moon-stars"></i>
+          </button>
+          {% if current_user.is_authenticated %}
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle me-1"></i>{{ current_user.full_name }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><h6 class="dropdown-header">{{ current_user.username }} · {{ current_user.role.value }}</h6></li>
+              {% if current_user.is_admin %}
+              <li>
+                <a class="dropdown-item" href="{{ url_for('users.list_users') }}">
+                  <i class="bi bi-people me-2"></i>User management
+                </a>
+              </li>
+              {% endif %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <form method="post" action="{{ url_for('auth.logout') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="dropdown-item">
+                    <i class="bi bi-box-arrow-right me-2"></i>Sign out
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-xxl flex-grow-1 py-4">
+    {% include "partials/_flash.html" %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bg-body border-top py-3 mt-auto">
+    <div class="container-xxl d-flex justify-content-between flex-wrap gap-2 text-body-secondary small">
+      <span>{{ config.APP_NAME }} v{{ config.APP_VERSION }}</span>
+      <span class="text-capitalize">{{ app_env }} environment</span>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

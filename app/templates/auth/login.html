@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import render_field %}
+
+{% block title %}Sign in · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <div class="text-center mb-4">
+          <i class="bi bi-bug-fill text-primary fs-1"></i>
+          <h1 class="h4 mt-2 mb-1">{{ config.APP_NAME }}</h1>
+          <p class="text-body-secondary small mb-0">Sign in to continue</p>
+        </div>
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          {{ render_field(form.identifier) }}
+          {{ render_field(form.password) }}
+          {{ render_field(form.remember_me) }}
+          {{ form.submit(class="btn btn-primary w-100") }}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "partials/_badges.html" import status_badge, severity_badge, story_status_badge %}
+
+{% block title %}Story tree · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-diagram-3 me-2"></i>Story tree</h1>
+    <p class="text-body-secondary small mb-0">Epic → story → defects. Click a row to expand.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('sprints.list_sprints') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-flag me-1"></i>Sprints
+    </a>
+    {% if current_user.is_admin or current_user.is_qa %}
+    <a href="{{ url_for('sprints.create_epic') }}" class="btn btn-outline-primary">
+      <i class="bi bi-plus-lg me-1"></i>New epic
+    </a>
+    <a href="{{ url_for('sprints.create_story') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>New story
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% for group in groups %}
+{% set group_id = "epic-" ~ (group.epic.id if group.epic else "none") %}
+<div class="card shadow-sm mb-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <button class="btn btn-sm btn-link p-0 text-reset tree-toggle" type="button"
+            data-bs-toggle="collapse" data-bs-target="#{{ group_id }}" aria-expanded="true"
+            aria-controls="{{ group_id }}">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    {% if group.epic %}
+      <span class="fw-semibold">{{ group.epic.key }}</span>
+      <span class="text-truncate">{{ group.epic.name }}</span>
+      {% if current_user.is_admin or current_user.is_qa %}
+      <a href="{{ url_for('sprints.edit_epic', epic_id=group.epic.id) }}"
+         class="btn btn-sm btn-link p-0 text-body-secondary" title="Edit epic"><i class="bi bi-pencil"></i></a>
+      {% endif %}
+    {% else %}
+      <span class="fw-semibold text-body-secondary"><i class="bi bi-folder2-open me-1"></i>No epic</span>
+    {% endif %}
+    <span class="ms-auto small text-body-secondary text-nowrap">
+      {{ group.stories | length }} stor{{ 'y' if group.stories | length == 1 else 'ies' }}
+      · {{ group.defect_count }} defect{{ 's' if group.defect_count != 1 }}
+    </span>
+  </div>
+  <div class="collapse show" id="{{ group_id }}">
+    <ul class="list-group list-group-flush">
+      {% for story, defects in group.stories %}
+      {% set expanded = story.id == highlight %}
+      <li class="list-group-item" id="story-row-{{ story.id }}">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button class="btn btn-sm btn-link p-0 text-reset tree-toggle" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#story-{{ story.id }}"
+                  aria-expanded="{{ 'true' if expanded else 'false' }}"
+                  aria-controls="story-{{ story.id }}">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+          <span class="fw-semibold">{{ story.key }}</span>
+          <span class="text-truncate">{{ story.title }}</span>
+          {{ story_status_badge(story.status) }}
+          {% if story.story_points %}<span class="badge text-bg-light border">{{ story.story_points }} pts</span>{% endif %}
+          {% if story.sprint %}
+            <a href="{{ url_for('sprints.detail', sprint_id=story.sprint.id) }}"
+               class="small text-body-secondary text-decoration-none">{{ story.sprint.name }}</a>
+          {% endif %}
+          <span class="badge text-bg-secondary">{{ defects | length }} bug{{ 's' if defects | length != 1 }}</span>
+          {% if current_user.is_admin or current_user.is_qa %}
+          <a href="{{ url_for('sprints.edit_story', story_id=story.id) }}"
+             class="ms-auto btn btn-sm btn-outline-secondary" title="Edit story"><i class="bi bi-pencil"></i></a>
+          {% endif %}
+        </div>
+        <div class="collapse {{ 'show' if expanded }}" id="story-{{ story.id }}">
+          <div class="mt-2">
+            {% for defect in defects %}
+            <div class="d-flex align-items-center gap-2 ms-4 py-1 border-top small">
+              <i class="bi bi-bug text-body-secondary"></i>
+              <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) }}"
+                 class="fw-semibold text-decoration-none text-nowrap">{{ defect.defect_key }}</a>
+              <span class="text-truncate flex-grow-1" title="{{ defect.title }}">{{ defect.title }}</span>
+              {{ severity_badge(defect.severity) }}
+              {{ status_badge(defect.status) }}
+            </div>
+            {% else %}
+            <div class="ms-4 py-1 border-top small text-body-secondary">No defects linked to this story.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </li>
+      {% else %}
+      <li class="list-group-item text-body-secondary small py-3">No stories in this group yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+  <div class="card-body text-center text-body-secondary py-5">
+    No epics or stories yet.
+    {% if current_user.is_admin or current_user.is_qa %}
+      Start with <a href="{{ url_for('sprints.create_epic') }}">an epic</a> or
+      <a href="{{ url_for('sprints.create_story') }}">a story</a>.
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{% if highlight %}
+<script>
+  // Bring the deep-linked story into view (?story=<id>).
+  document.getElementById("story-row-{{ highlight }}")?.scrollIntoView({ block: "center" });
+</script>
+{% endif %}
+{% endblock %}

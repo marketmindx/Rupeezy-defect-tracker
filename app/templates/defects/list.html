@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% from "partials/_pagination.html" import render_pagination with context %}
+{% from "partials/_badges.html" import status_badge, severity_badge, priority_badge, platform_icon %}
+
+{% block title %}Defects · {{ config.APP_NAME }}{% endblock %}
+
+{% macro sort_th(label, key) %}
+{% set active = filters.sort == key %}
+{% set next_dir = "asc" if (active and filters.direction == "desc") else "desc" %}
+<th class="text-nowrap">
+  <a class="text-decoration-none text-reset"
+     href="{{ url_for('defects.list_defects', **dict(request.args.to_dict(), sort=key, dir=next_dir, page=1)) }}">
+    {{ label }}
+    {% if active %}<i class="bi bi-caret-{{ 'up' if filters.direction == 'asc' else 'down' }}-fill small"></i>{% endif %}
+  </a>
+</th>
+{% endmacro %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <h1 class="h3 mb-0"><i class="bi bi-bug me-2"></i>Defects</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.defects_csv', **request.args.to_dict()) }}"
+       class="btn btn-outline-secondary" title="Export the current filtered view as CSV (opens in Google Sheets)">
+      <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+    <a href="{{ url_for('defects.create_defect') }}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Report defect
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      {# Preserve chip-only filters across Apply #}
+      {% for keep in ("state", "assignee", "regression", "qa", "story", "reporter") %}
+        {% if request.args.get(keep) %}
+          <input type="hidden" name="{{ keep }}" value="{{ request.args.get(keep) }}">
+        {% endif %}
+      {% endfor %}
+      <div class="col-md-4 col-xl-3">
+        <label class="form-label small text-body-secondary" for="q">Search</label>
+        <input type="search" class="form-control" id="q" name="q"
+               value="{{ filters.q or '' }}" placeholder="BUG-012 or title">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-body-secondary" for="status">Status</label>
+        <select class="form-select" id="status" name="status">
+          <option value="">All</option>
+          {% for s in statuses %}
+            <option value="{{ s.value }}" {{ 'selected' if filters.status == s }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-body-secondary" for="severity">Severity</label>
+        <select class="form-select" id="severity" name="severity">
+          <option value="">All</option>
+          {% for s in severities %}
+            <option value="{{ s.value }}" {{ 'selected' if filters.severity == s }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-body-secondary" for="priority">Priority</label>
+        <select class="form-select" id="priority" name="priority">
+          <option value="">All</option>
+          {% for p in priorities %}
+            <option value="{{ p.value }}" {{ 'selected' if filters.priority == p }}>{{ p.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-body-secondary" for="platform">Platform</label>
+        <select class="form-select" id="platform" name="platform">
+          <option value="">All</option>
+          {% for p in platforms %}
+            <option value="{{ p.value }}" {{ 'selected' if filters.platform == p }}>{{ p.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 col-xl-2">
+        <label class="form-label small text-body-secondary" for="module">Module</label>
+        <select class="form-select" id="module" name="module">
+          <option value="">All</option>
+          {% for m in modules %}
+            <option value="{{ m.id }}" {{ 'selected' if filters.module_id == m.id }}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 col-xl-2">
+        <label class="form-label small text-body-secondary" for="sprint">Sprint</label>
+        <select class="form-select" id="sprint" name="sprint">
+          <option value="">All</option>
+          {% for s in sprints %}
+            <option value="{{ s.id }}" {{ 'selected' if filters.sprint_id == s.id }}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 col-xl-2">
+        <label class="form-label small text-body-secondary" for="developer">Developer</label>
+        <select class="form-select" id="developer" name="developer">
+          <option value="">All</option>
+          {% for u in developers %}
+            <option value="{{ u.id }}" {{ 'selected' if filters.developer_id == u.id }}>{{ u.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 col-xl-2">
+        <label class="form-label small text-body-secondary" for="created_from">Reported from</label>
+        <input type="date" class="form-control" id="created_from" name="created_from"
+               value="{{ request.args.get('created_from', '') }}">
+      </div>
+      <div class="col-md-3 col-xl-2">
+        <label class="form-label small text-body-secondary" for="created_to">Reported to</label>
+        <input type="date" class="form-control" id="created_to" name="created_to"
+               value="{{ request.args.get('created_to', '') }}">
+      </div>
+      <div class="col-md-3 col-xl-2 d-flex gap-2">
+        <button type="submit" class="btn btn-outline-secondary flex-grow-1">
+          <i class="bi bi-funnel me-1"></i>Apply
+        </button>
+        <a href="{{ url_for('defects.list_defects') }}" class="btn btn-outline-secondary" title="Clear filters">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          {{ sort_th("ID", "key") }}
+          <th>Title</th>
+          <th>Platform</th>
+          {{ sort_th("Severity", "severity") }}
+          {{ sort_th("Priority", "priority") }}
+          <th>Status</th>
+          <th class="d-none d-lg-table-cell">Developer</th>
+          {{ sort_th("Updated", "updated") }}
+        </tr>
+      </thead>
+      <tbody>
+        {% for defect in pagination.items %}
+        <tr>
+          <td class="text-nowrap">
+            <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) }}"
+               class="fw-semibold text-decoration-none">{{ defect.defect_key }}</a>
+          </td>
+          <td style="max-width: 360px;">
+            <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) }}"
+               class="text-decoration-none text-reset d-block text-truncate" title="{{ defect.title }}">
+              {{ defect.title }}
+            </a>
+            <div class="small text-body-secondary">
+              {{ defect.module.name }}{% if defect.story %} · {{ defect.story.key }}{% endif %}
+              {% if defect.sprint %} · {{ defect.sprint.name }}{% endif %}
+            </div>
+          </td>
+          <td>{{ platform_icon(defect.platform) }}</td>
+          <td>{{ severity_badge(defect.severity) }}</td>
+          <td>{{ priority_badge(defect.priority) }}</td>
+          <td>{{ status_badge(defect.status) }}</td>
+          <td class="d-none d-lg-table-cell small">
+            {% if defect.assigned_developer %}
+              <a href="{{ url_for('developers.profile', user_id=defect.assigned_developer_id) }}"
+                 class="text-decoration-none text-reset">{{ defect.assigned_developer.full_name }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="small text-body-secondary text-nowrap">{{ defect.updated_at | timeago }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-body-secondary py-5">
+            No defects match these filters.
+            <a href="{{ url_for('defects.list_defects') }}">Clear filters</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.total %}
+  <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="small text-body-secondary">
+      Showing {{ pagination.first }}&ndash;{{ pagination.last }} of {{ pagination.total }}
+    </span>
+    {{ render_pagination(pagination, "defects.list_defects") }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

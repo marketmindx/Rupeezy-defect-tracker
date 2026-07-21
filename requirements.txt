@@ -1,0 +1,13 @@
+# Runtime dependencies — compatible-release pins (patch/minor updates allowed,
+# breaking majors blocked). Freeze exact versions per release if needed:
+#   pip freeze > requirements.lock
+Flask~=3.1
+Flask-SQLAlchemy~=3.1
+Flask-Login~=0.6
+Flask-Migrate~=4.1
+Flask-WTF~=1.2
+WTForms~=3.1
+SQLAlchemy~=2.0
+python-dotenv~=1.0
+email-validator~=2.1
+reportlab~=5.0

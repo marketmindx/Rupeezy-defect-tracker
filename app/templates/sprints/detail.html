@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% from "partials/_badges.html" import status_badge, severity_badge, sprint_status_badge, story_status_badge %}
+
+{% block title %}{{ sprint.name }} · {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+      <h1 class="h4 mb-0">{{ sprint.name }}</h1>
+      <span class="badge text-bg-primary">Sprint {{ sprint.number }}</span>
+      {{ sprint_status_badge(sprint.status) }}
+      {% if sprint.is_current %}<span class="badge text-bg-warning">Current</span>{% endif %}
+    </div>
+    <div class="text-body-secondary small">
+      <i class="bi bi-calendar3 me-1"></i>
+      {{ sprint.start_date.strftime('%d %b') }} &ndash; {{ sprint.end_date.strftime('%d %b %Y') }}
+      · {{ days_left }} day{{ 's' if days_left != 1 }} left
+      {% if sprint.goal %} · <i class="bi bi-bullseye me-1"></i>{{ sprint.goal }}{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('sprints.list_sprints') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>All sprints
+    </a>
+    {% if current_user.is_admin or current_user.is_qa %}
+    <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  {% for tile in [
+      ("Defects in sprint", total, "bi-bug", "primary"),
+      ("Completed", done, "bi-check2-circle", "success"),
+      ("Still open", open_count, "bi-hourglass-split", "warning"),
+  ] %}
+  <div class="col-sm-4 col-xl-3">
+    <div class="card shadow-sm stat-card h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon bg-{{ tile[3] }}-subtle text-{{ tile[3] }}"><i class="bi {{ tile[2] }}"></i></div>
+        <div>
+          <div class="fs-3 fw-bold lh-1">{{ tile[1] }}</div>
+          <div class="text-body-secondary small">{{ tile[0] }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="col-sm-12 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-body-secondary">Completion</span>
+          <span class="fw-semibold">{{ pct }}%</span>
+        </div>
+        <div class="progress" style="height: .6rem;">
+          <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          {% for s in statuses %}
+            {% if breakdown.get(s) %}
+              <span>{{ status_badge(s) }} <span class="small text-body-secondary">{{ breakdown[s] }}</span></span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-journal-text me-2"></i>Stories
+        <span class="badge text-bg-secondary ms-1">{{ stories | length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Story</th><th>Status</th><th class="text-center">Pts</th><th class="text-center">Bugs</th></tr></thead>
+          <tbody>
+            {% for story, bug_count in stories %}
+            <tr>
+              <td>
+                <a href="{{ url_for('sprints.tree', story=story.id) }}"
+                   class="fw-semibold text-decoration-none">{{ story.key }}</a>
+                <div class="small text-body-secondary text-truncate" style="max-width: 220px;">{{ story.title }}</div>
+              </td>
+              <td>{{ story_status_badge(story.status) }}</td>
+              <td class="text-center small">{{ story.story_points or "—" }}</td>
+              <td class="text-center"><span class="badge text-bg-secondary">{{ bug_count }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-body-secondary py-4">No stories in this sprint.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bug me-2"></i>Defects <span class="badge text-bg-secondary ms-1">{{ total }}</span></span>
+        <a class="small" href="/defects/?sprint={{ sprint.id }}">View in defect list</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th><th class="d-none d-xl-table-cell">Developer</th></tr></thead>
+          <tbody>
+            {% for defect in defects %}
+            <tr>
+              <td class="text-nowrap">
+                <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) }}"
+                   class="fw-semibold text-decoration-none">{{ defect.defect_key }}</a>
+              </td>
+              <td style="max-width: 260px;">
+                <span class="d-block text-truncate" title="{{ defect.title }}">{{ defect.title }}</span>
+                <span class="small text-body-secondary">{{ defect.module.name }}{% if defect.story %} · {{ defect.story.key }}{% endif %}</span>
+              </td>
+              <td>{{ severity_badge(defect.severity) }}</td>
+              <td>{{ status_badge(defect.status) }}</td>
+              <td class="d-none d-xl-table-cell small">
+                {% if defect.assigned_developer %}
+                  <a href="{{ url_for('developers.profile', user_id=defect.assigned_developer_id) }}"
+                     class="text-decoration-none text-reset">{{ defect.assigned_developer.full_name }}</a>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-body-secondary py-4">No defects in this sprint.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
