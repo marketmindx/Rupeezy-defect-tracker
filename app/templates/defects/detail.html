@@ -302,12 +302,22 @@
                  class="text-decoration-none">{{ defect.assigned_qa.full_name }}</a>
             {% else %}—{% endif %}
           </dd>
-          <dt class="col-5">Developer</dt>
+          <dt class="col-5">Assignee</dt>
           <dd class="col-7">
             {% if defect.assigned_developer %}
               <a href="{{ url_for('developers.profile', user_id=defect.assigned_developer_id) }}"
                  class="text-decoration-none">{{ defect.assigned_developer.full_name }}</a>
             {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">Strapi</dt>
+          <dd class="col-7">
+            {% if defect.strapi_ticket_id %}
+              <span class="badge text-bg-success"><i class="bi bi-check-lg me-1"></i>{{ defect.strapi_ticket_id }}</span>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-primary" id="strapi-push-btn">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Create in Strapi
+              </button>
+            {% endif %}
           </dd>
           <dt class="col-5">App version</dt>
           <dd class="col-7">{{ defect.app_version or "—" }}{% if defect.build_number %} ({{ defect.build_number }}){% endif %}</dd>
@@ -357,8 +367,32 @@
     </div>
   </div>
 </div>
+
+{% if not defect.strapi_ticket_id %}
+  {% include "partials/_strapi_push_modal.html" %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/defects.js') }}"></script>
+{% if not defect.strapi_ticket_id %}
+<script src="{{ url_for('static', filename='js/strapi_push.js') }}"></script>
+<script>
+(() => {
+  const btn = document.getElementById("strapi-push-btn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      window.StrapiPush.openForExisting(
+        {{ defect.id }},
+        {{ ('Creating a Bug in Strapi for "%s".' | format(defect.title)) | tojson }},
+        () => window.location.reload()
+      );
+    });
+  }
+  {% if request.args.get("strapi_pending") %}
+  window.StrapiPush.firePendingIfAny({{ defect.id }});
+  {% endif %}
+})();
+</script>
+{% endif %}
 {% endblock %}

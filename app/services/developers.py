@@ -58,7 +58,22 @@ class DeveloperService(BaseService):
                 ],
             })
 
-        return {"developers": developers, "qa_team": qa_team}
+        # Product managers: ad-hoc bugs are assigned to them like developers,
+        # so their card mirrors the developer stats (assigned-work counts).
+        product_managers = []
+        for user in self.repository.users_with_role(UserRole.PRODUCT_MANAGER):
+            counts = dev_counts.get(user.id, {"total": 0, "done": 0, "critical_open": 0})
+            product_managers.append({
+                "user": user,
+                "stats": [
+                    ("Open", counts["total"] - counts["done"], "primary"),
+                    ("Critical", counts["critical_open"], "danger"),
+                    ("Resolved", counts["done"], "success"),
+                ],
+            })
+
+        return {"developers": developers, "qa_team": qa_team,
+                "product_managers": product_managers}
 
     # -- profile -------------------------------------------------------------
     def profile(self, user_id: int) -> "Dict[str, Any]":

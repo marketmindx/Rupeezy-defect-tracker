@@ -74,15 +74,22 @@
 <div class="row g-3">
   <div class="col-lg-5">
     <div class="card shadow-sm h-100">
-      <div class="card-header fw-semibold"><i class="bi bi-journal-text me-2"></i>Stories
-        <span class="badge text-bg-secondary ms-1">{{ stories | length }}</span>
+      <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-journal-text me-2"></i>Stories
+          <span class="badge text-bg-secondary ms-1" id="story-count">{{ stories | length }}</span>
+        </span>
+        <div class="input-group input-group-sm" style="max-width: 240px;">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" id="story-search" class="form-control"
+                 placeholder="Search ADVA-… or title" autocomplete="off" aria-label="Search stories">
+        </div>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead><tr><th>Story</th><th>Status</th><th class="text-center">Pts</th><th class="text-center">Bugs</th></tr></thead>
-          <tbody>
+          <tbody id="story-tbody">
             {% for story, bug_count in stories %}
-            <tr>
+            <tr data-story="{{ story.key|lower }} {{ story.title|lower }}">
               <td>
                 <a href="{{ url_for('sprints.tree', story=story.id) }}"
                    class="fw-semibold text-decoration-none">{{ story.key }}</a>
@@ -95,6 +102,9 @@
             {% else %}
             <tr><td colspan="4" class="text-center text-body-secondary py-4">No stories in this sprint.</td></tr>
             {% endfor %}
+            <tr id="story-noresult" class="d-none">
+              <td colspan="4" class="text-center text-body-secondary py-4">No stories match your search.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -138,4 +148,30 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById('story-search');
+  if (!input) return;
+  const tbody = document.getElementById('story-tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[data-story]'));
+  const noResult = document.getElementById('story-noresult');
+  const count = document.getElementById('story-count');
+  const total = rows.length;
+
+  input.addEventListener('input', function () {
+    const q = input.value.trim().toLowerCase();
+    let shown = 0;
+    rows.forEach(function (row) {
+      const match = !q || row.dataset.story.indexOf(q) !== -1;
+      row.classList.toggle('d-none', !match);
+      if (match) shown++;
+    });
+    if (noResult) noResult.classList.toggle('d-none', shown !== 0 || total === 0);
+    if (count) count.textContent = q ? (shown + ' / ' + total) : total;
+  });
+})();
+</script>
 {% endblock %}

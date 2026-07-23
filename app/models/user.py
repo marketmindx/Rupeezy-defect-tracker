@@ -15,6 +15,7 @@ from app.models.enums import UserRole, enum_column
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.agile import Story
     from app.models.defect import Defect
 
 
@@ -34,6 +35,9 @@ class User(TimestampMixin, UserMixin, db.Model):
     full_name: Mapped[str] = mapped_column(sa.String(120), nullable=False)
     password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(enum_column(UserRole), nullable=False, index=True)
+    #: Optional designation label (e.g. "VP Tech") shown on the member card —
+    #: independent of ``role``, which governs permissions.
+    title: Mapped[Optional[str]] = mapped_column(sa.String(50))
     is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=True)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime)
 
@@ -53,6 +57,16 @@ class User(TimestampMixin, UserMixin, db.Model):
     developer_defects: Mapped[List["Defect"]] = relationship(
         back_populates="assigned_developer",
         foreign_keys="Defect.assigned_developer_id",
+        passive_deletes="all",
+    )
+    assigned_stories: Mapped[List["Story"]] = relationship(
+        back_populates="assignee",
+        foreign_keys="Story.assignee_id",
+        passive_deletes="all",
+    )
+    reported_stories: Mapped[List["Story"]] = relationship(
+        back_populates="reporter",
+        foreign_keys="Story.reporter_id",
         passive_deletes="all",
     )
 
@@ -79,6 +93,10 @@ class User(TimestampMixin, UserMixin, db.Model):
     @property
     def is_developer(self) -> bool:
         return self.role is UserRole.DEVELOPER
+
+    @property
+    def is_product_manager(self) -> bool:
+        return self.role is UserRole.PRODUCT_MANAGER
 
     def __repr__(self) -> str:
         return f"<User {self.username} ({self.role.value})>"

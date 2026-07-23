@@ -22,6 +22,7 @@ from flask_login import current_user
 from app.exceptions import AppError
 from app.extensions import db
 from app.forms.defects import AttachmentUploadForm, CommentForm, DefectForm
+from app.integrations.strapi import StrapiError, list_assignable_members
 from app.models import (
     Attachment,
     Criticality,
@@ -43,7 +44,9 @@ from app.models import (
 )
 from app.repositories.defects import DefectFilters
 from app.services.defects import DefectService
+from app.services.strapi_push import StrapiPushService
 from app.utils.datetime import local_date_start_utc
+from app.utils.responses import api_error, api_success
 from app.utils.security import admin_required
 
 defects_bp = Blueprint("defects", __name__, url_prefix="/defects")
@@ -98,11 +101,18 @@ def _parse_filters() -> DefectFilters:
     )
 
 
-def _users_by_role(role: UserRole) -> "List[User]":
+def _strapi_sprints() -> "List[Sprint]":
+    return list(db.session.scalars(
+        sa.select(Sprint).where(Sprint.strapi_sprint_id.isnot(None))
+        .order_by(Sprint.number.desc())
+    ))
+
+
+def _users_by_role(*roles: UserRole) -> "List[User]":
     return list(
         db.session.scalars(
             sa.select(User)
-            .where(User.role == role, User.is_active.is_(True))
+            .where(User.role.in_(roles), User.is_active.is_(True))
             .order_by(User.full_name)
         )
     )
@@ -117,8 +127,11 @@ def _reference_data() -> "Dict[str, Any]":
         "stories": list(db.session.scalars(sa.select(Story).order_by(Story.id.desc()).limit(100))),
         "sprints": list(db.session.scalars(sa.select(Sprint).order_by(Sprint.number.desc()).limit(24))),
         "qa_users": _users_by_role(UserRole.QA),
-        "developers": _users_by_role(UserRole.DEVELOPER),
+        # PMs can own ad-hoc bugs, so they're assignable alongside developers.
+        "developers": _users_by_role(UserRole.DEVELOPER, UserRole.PRODUCT_MANAGER),
         "labels": list(db.session.scalars(sa.select(Label).order_by(Label.name))),
+        # Only sprints mirrored from Strapi can be targeted by the push dialog.
+        "strapi_sprints": _strapi_sprints(),
     }
 
 
@@ -215,6 +228,7 @@ def list_defects():
         modules=ref["modules"],
         sprints=ref["sprints"],
         developers=ref["developers"],
+        strapi_sprints=ref["strapi_sprints"],
     )
 
 
@@ -230,9 +244,16 @@ def create_defect():
             flash(exc.message, "danger")
         else:
             flash(f"{defect.defect_key} created.", "success")
-            return redirect(url_for("defects.detail", defect_key=defect.defect_key))
+            # strapi_pending: the checkbox was checked, so the browser holds
+            # a queued push in sessionStorage — this flag is the only signal
+            # that ties it to THIS exact defect (see detail.html / strapi_push.js).
+            strapi_pending = 1 if request.form.get("strapi_pending") else None
+            return redirect(url_for(
+                "defects.detail", defect_key=defect.defect_key, strapi_pending=strapi_pending
+            ))
     return render_template(
-        "defects/form.html", form=form, ref=ref, defect=None, heading="Report defect"
+        "defects/form.html", form=form, ref=ref, defect=None, heading="Report defect",
+        strapi_sprints=ref["strapi_sprints"],
     )
 
 
@@ -283,6 +304,7 @@ def detail(defect_key: str):
         comment_roots=[c for c in defect.comments if c.parent_id is None],
         comment_children=comment_children,
         activities=list(reversed(defect.activities)),
+        strapi_sprints=_strapi_sprints(),
     )
 
 
@@ -319,6 +341,44 @@ def delete_defect(defect_id: int):
     except AppError as exc:
         flash(exc.message, "danger")
     return redirect(url_for("defects.list_defects"))
+
+
+# ---------------------------------------------------------------------------
+# Strapi push — "Create as Bug in Strapi" dialog (form + list)
+# ---------------------------------------------------------------------------
+
+@defects_bp.get("/strapi/members")
+def strapi_members():
+    """Assignee options for the push dialog (Engineering + PM, live from Strapi)."""
+    try:
+        return api_success(list_assignable_members())
+    except StrapiError as exc:
+        return api_error(str(exc), code="strapi_error", status=502)
+
+
+@defects_bp.post("/<int:defect_id>/push-to-strapi")
+def push_to_strapi(defect_id: int):
+    """Create this defect as a Bug ticket in Strapi. Every field is optional —
+    the user decides what to fill in; nothing here runs unless they submit."""
+    payload = request.get_json(silent=True) or {}
+    current_app.logger.info("push-to-strapi request defect_id=%s payload=%r", defect_id, payload)
+    try:
+        result = StrapiPushService().push(
+            actor=current_user,
+            defect_id=defect_id,
+            story_key=payload.get("story_key") or None,
+            sprint_id=payload.get("sprint_id") or None,
+            points=payload.get("points") or None,
+            labels=[l.strip() for l in (payload.get("labels") or []) if l and l.strip()],
+            assignee_member_id=payload.get("assignee_member_id") or None,
+        )
+    except AppError as exc:
+        current_app.logger.warning(
+            "push-to-strapi failed defect_id=%s code=%s message=%s",
+            defect_id, exc.error_code, exc.message,
+        )
+        return api_error(exc.message, code=exc.error_code, status=exc.status_code)
+    return api_success(result)
 
 
 # ---------------------------------------------------------------------------

@@ -40,6 +40,7 @@ from app.repositories.defects import DefectFilters, DefectRepository
 from app.services.activity import ActivityService
 from app.services.base import BaseService
 from app.services.keys import next_key
+from app.services.strapi_push import sync_close_to_strapi
 from app.utils.datetime import utcnow
 from app.utils.files import allowed_file, delete_stored, detect_kind, save_upload
 
@@ -48,10 +49,11 @@ WORKFLOW: "Dict[DefectStatus, set]" = {
     DefectStatus.OPEN: {
         DefectStatus.IN_PROGRESS, DefectStatus.BLOCKED, DefectStatus.DEFERRED,
         DefectStatus.REJECTED, DefectStatus.DUPLICATE, DefectStatus.CANNOT_REPRODUCE,
+        DefectStatus.CLOSED,
     },
     DefectStatus.IN_PROGRESS: {
         DefectStatus.READY_FOR_QA, DefectStatus.BLOCKED,
-        DefectStatus.DEFERRED, DefectStatus.OPEN,
+        DefectStatus.DEFERRED, DefectStatus.OPEN, DefectStatus.CLOSED,
     },
     DefectStatus.READY_FOR_QA: {
         DefectStatus.RETEST, DefectStatus.VERIFIED, DefectStatus.IN_PROGRESS,
@@ -290,6 +292,16 @@ class DefectService(BaseService):
             note=(note or "").strip() or None,
         )
         self.commit()
+
+        if to_status is DefectStatus.CLOSED:
+            synced = sync_close_to_strapi(defect)
+            if synced:
+                self.activity.log(
+                    entity_type="defect", entity_id=defect.id, defect=defect, actor=actor,
+                    action=ActivityAction.UPDATED, field="strapi_status",
+                    new_value=synced, note=f"Linked Strapi ticket moved to {synced}.",
+                )
+                self.commit()
         return defect
 
     # -- comments -------------------------------------------------------------------

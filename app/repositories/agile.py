@@ -115,6 +115,9 @@ class StoryRepository(BaseRepository[Story]):
                 .options(
                     selectinload(Epic.stories).selectinload(Story.defects),
                     selectinload(Epic.stories).joinedload(Story.sprint),
+                    selectinload(Epic.stories).joinedload(Story.assignee),
+                    selectinload(Epic.stories).joinedload(Story.reporter),
+                    selectinload(Epic.stories).selectinload(Story.labels),
                 )
                 .order_by(Epic.id)
             )
@@ -123,7 +126,13 @@ class StoryRepository(BaseRepository[Story]):
             self.session.scalars(
                 sa.select(Story)
                 .where(Story.epic_id.is_(None))
-                .options(selectinload(Story.defects), joinedload(Story.sprint))
+                .options(
+                    selectinload(Story.defects),
+                    joinedload(Story.sprint),
+                    joinedload(Story.assignee),
+                    joinedload(Story.reporter),
+                    selectinload(Story.labels),
+                )
                 .order_by(Story.id)
             )
         )

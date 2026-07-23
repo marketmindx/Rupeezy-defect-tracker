@@ -26,6 +26,7 @@ class UserRole(enum.Enum):
     ADMIN = "Admin"
     QA = "QA"
     DEVELOPER = "Developer"
+    PRODUCT_MANAGER = "Product Manager"
 
 
 class Platform(enum.Enum):

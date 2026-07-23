@@ -1,0 +1,69 @@
+{# Shared "Create as Bug in Strapi" dialog. Included on the defect form,
+   list, and detail pages; driven by static/js/strapi_push.js.
+   Every field here is optional — nothing is pre-filled or forced. Leave the
+   user story number blank and the bug goes straight to the assignee's
+   Backlog in Strapi (no parent, no sprint). #}
+<input type="hidden" id="strapi-csrf-token" value="{{ csrf_token() }}">
+
+<div class="modal fade" id="strapiPushModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-box-arrow-up-right me-2"></i>Create as Bug in Strapi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-body-secondary" id="strapi-modal-context"></p>
+
+        <div class="alert alert-danger d-none" id="strapi-modal-error"></div>
+
+        <div class="mb-3">
+          <label class="form-label" for="strapi-story-key">User story number</label>
+          <input type="text" class="form-control" id="strapi-story-key" placeholder="e.g. ADVA-1264">
+          <div class="form-text">The Strapi ticket this bug will be created under. Leave blank to send it straight to the assignee's Backlog instead.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="strapi-sprint">Sprint</label>
+          <select class="form-select" id="strapi-sprint">
+            <option value="" selected>— Backlog (no sprint) —</option>
+            {% for s in (strapi_sprints or []) %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="strapi-assignee">Assignee</label>
+          <select class="form-select" id="strapi-assignee">
+            <option value="" selected>— unassigned —</option>
+          </select>
+          <div class="form-text">Loaded live from the Strapi board.</div>
+        </div>
+
+        <div class="row">
+          <div class="col-6 mb-3">
+            <label class="form-label" for="strapi-points">Story points</label>
+            <input type="number" min="0" step="1" class="form-control" id="strapi-points">
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label" for="strapi-labels">Labels</label>
+            <input type="text" class="form-control" id="strapi-labels" placeholder="comma, separated">
+          </div>
+        </div>
+
+        <p class="small text-body-secondary mb-0">
+          Title, description, and priority are copied from this defect as-is.
+          Reporter will be recorded as you (<strong>{{ current_user.full_name }}</strong>).
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="strapi-modal-confirm">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="strapi-modal-spinner"></span>
+          <span id="strapi-modal-confirm-label">Create in Strapi</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

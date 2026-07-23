@@ -62,6 +62,7 @@
         <span class="badge text-bg-{{ 'dark' if user.is_admin else ('info' if user.is_qa else 'primary') }}">
           {{ user.role.value }}
         </span>
+        {% if user.title %}<span class="badge rounded-pill text-bg-info">{{ user.title }}</span>{% endif %}
         {% if not user.is_active %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
       </div>
       <div class="text-body-secondary small">

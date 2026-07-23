@@ -108,6 +108,18 @@
         </div>
       </div>
 
+      {% if not defect %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="form-check mb-0">
+            <input type="checkbox" class="form-check-input" id="also-create-strapi" name="strapi_pending">
+            <label class="form-check-label" for="also-create-strapi">Also create this as a Bug in Strapi</label>
+          </div>
+          <div class="small text-body-secondary mt-1 d-none" id="strapi-pending-summary"></div>
+        </div>
+      </div>
+      {% endif %}
+
       <div class="d-grid gap-2">
         {{ form.submit(class="btn btn-primary") }}
         <a href="{{ url_for('defects.detail', defect_key=defect.defect_key) if defect else url_for('defects.list_defects') }}"
@@ -116,8 +128,43 @@
     </div>
   </div>
 </form>
+
+{% if not defect %}
+  {% include "partials/_strapi_push_modal.html" %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/defects.js') }}"></script>
+{% if not defect %}
+<script src="{{ url_for('static', filename='js/strapi_push.js') }}"></script>
+<script>
+(() => {
+  const checkbox = document.getElementById("also-create-strapi");
+  const summary = document.getElementById("strapi-pending-summary");
+  const titleField = document.getElementById("title");
+
+  checkbox.addEventListener("change", () => {
+    if (!checkbox.checked) {
+      sessionStorage.removeItem("dt-pending-strapi-push");
+      summary.classList.add("d-none");
+      return;
+    }
+    const context = titleField.value.trim()
+      ? `For: "${titleField.value.trim()}" — this defect will be saved first, then created as a Bug in Strapi.`
+      : "This defect will be saved first, then created as a Bug in Strapi.";
+    window.StrapiPush.openForPending(
+      context,
+      (payload) => {
+        summary.textContent = payload.story_key
+          ? `Will create in Strapi under ${payload.story_key} once saved.`
+          : "Will create in Strapi, in the assignee's Backlog, once saved.";
+        summary.classList.remove("d-none");
+      },
+      () => { checkbox.checked = false; }
+    );
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

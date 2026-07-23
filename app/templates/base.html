@@ -47,7 +47,7 @@
           </li>
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('developers.') }}"
-               href="{{ url_for('developers.directory') }}">Developers</a>
+               href="{{ url_for('developers.directory') }}">Members</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('reports.') }}"
@@ -94,6 +94,7 @@
 
   <main class="container-xxl flex-grow-1 py-4">
     {% include "partials/_flash.html" %}
+    <div id="js-alert-mount"></div>
     {% block content %}{% endblock %}
   </main>
 

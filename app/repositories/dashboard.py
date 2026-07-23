@@ -31,18 +31,36 @@ _TERMINAL = [status for status in DefectStatus if status.is_terminal]
 
 
 class DashboardRepository:
+    def __init__(self, user_id: "Optional[int]" = None) -> None:
+        #: when set, every defect aggregate is scoped to defects this user
+        #: reported, develops, or QAs — powering per-user dashboards. When
+        #: None (e.g. admins), the dashboard spans all defects.
+        self.user_id = user_id
+
     @property
     def session(self):
         return db.session
 
-    @staticmethod
-    def _open_filter():
-        return Defect.status.in_(DefectStatus.open_statuses())
+    def _scope(self):
+        """Condition limiting defects to those the scoped user is involved in."""
+        if self.user_id is None:
+            return sa.true()
+        uid = self.user_id
+        return sa.or_(
+            Defect.reporter_id == uid,
+            Defect.assigned_developer_id == uid,
+            Defect.assigned_qa_id == uid,
+        )
+
+    def _open_filter(self):
+        return sa.and_(Defect.status.in_(DefectStatus.open_statuses()), self._scope())
 
     # -- counts ---------------------------------------------------------------
     def count_by_status(self) -> "Dict[DefectStatus, int]":
         rows = self.session.execute(
-            sa.select(Defect.status, sa.func.count()).group_by(Defect.status)
+            sa.select(Defect.status, sa.func.count())
+            .where(self._scope())
+            .group_by(Defect.status)
         ).all()
         return {status: count for status, count in rows}
 
@@ -66,7 +84,7 @@ class DashboardRepository:
     def created_since(self, start: datetime) -> "List[datetime]":
         return list(
             self.session.scalars(
-                sa.select(Defect.created_at).where(Defect.created_at >= start)
+                sa.select(Defect.created_at).where(Defect.created_at >= start, self._scope())
             )
         )
 
@@ -74,7 +92,7 @@ class DashboardRepository:
         return list(
             self.session.scalars(
                 sa.select(Defect.resolved_at).where(
-                    Defect.resolved_at.is_not(None), Defect.resolved_at >= start
+                    Defect.resolved_at.is_not(None), Defect.resolved_at >= start, self._scope()
                 )
             )
         )
@@ -122,6 +140,7 @@ class DashboardRepository:
             for name, number, total, done_count in self.session.execute(
                 sa.select(Sprint.name, Sprint.number, sa.func.count(Defect.id), done)
                 .join(Defect, Defect.sprint_id == Sprint.id, isouter=True)
+                .where(self._scope())
                 .group_by(Sprint.id, Sprint.name, Sprint.number)
                 .order_by(Sprint.number.desc())
                 .limit(limit)
@@ -133,14 +152,17 @@ class DashboardRepository:
         def count(stmt) -> int:
             return self.session.scalar(stmt) or 0
 
+        actor_scope = sa.true() if self.user_id is None else (ActivityLog.actor_id == self.user_id)
+        author_scope = sa.true() if self.user_id is None else (Comment.author_id == self.user_id)
         return {
             "reported": count(
-                sa.select(sa.func.count()).select_from(Defect).where(Defect.created_at >= start)
+                sa.select(sa.func.count()).select_from(Defect)
+                .where(Defect.created_at >= start, self._scope())
             ),
             "resolved": count(
                 sa.select(sa.func.count())
                 .select_from(Defect)
-                .where(Defect.resolved_at.is_not(None), Defect.resolved_at >= start)
+                .where(Defect.resolved_at.is_not(None), Defect.resolved_at >= start, self._scope())
             ),
             "status_changes": count(
                 sa.select(sa.func.count())
@@ -148,23 +170,27 @@ class DashboardRepository:
                 .where(
                     ActivityLog.action == ActivityAction.STATUS_CHANGED,
                     ActivityLog.created_at >= start,
+                    actor_scope,
                 )
             ),
             "comments": count(
-                sa.select(sa.func.count()).select_from(Comment).where(Comment.created_at >= start)
+                sa.select(sa.func.count()).select_from(Comment)
+                .where(Comment.created_at >= start, author_scope)
             ),
         }
 
     # -- feed & sprint ------------------------------------------------------------
     def recent_activity(self, limit: int = 10) -> "List[ActivityLog]":
-        return list(
-            self.session.scalars(
-                sa.select(ActivityLog)
-                .options(joinedload(ActivityLog.actor), joinedload(ActivityLog.defect))
-                .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
-                .limit(limit)
-            )
+        stmt = (
+            sa.select(ActivityLog)
+            .options(joinedload(ActivityLog.actor), joinedload(ActivityLog.defect))
+            .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
         )
+        if self.user_id is not None:  # my actions, or activity on defects I'm on
+            stmt = stmt.outerjoin(Defect, ActivityLog.defect_id == Defect.id).where(
+                sa.or_(ActivityLog.actor_id == self.user_id, self._scope())
+            )
+        return list(self.session.scalars(stmt.limit(limit)))
 
     def current_sprint(self) -> "Optional[Sprint]":
         """Sprint whose date range contains today; prefer status=Active."""
@@ -187,7 +213,8 @@ class DashboardRepository:
             sa.func.sum(sa.case((Defect.status.in_(_TERMINAL), 1), else_=0)), 0
         )
         row = self.session.execute(
-            sa.select(sa.func.count(), done).select_from(Defect).where(Defect.sprint_id == sprint_id)
+            sa.select(sa.func.count(), done).select_from(Defect)
+            .where(Defect.sprint_id == sprint_id, self._scope())
         ).one()
         return int(row[0]), int(row[1])
 

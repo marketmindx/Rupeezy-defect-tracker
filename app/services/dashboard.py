@@ -41,8 +41,13 @@ class DashboardService:
     TREND_DAYS = 30
     AGING_BUCKETS = ((3, "0–3d"), (7, "4–7d"), (14, "8–14d"), (30, "15–30d"), (None, "30d+"))
 
-    def __init__(self, repository: Optional[DashboardRepository] = None) -> None:
-        self.repository = repository or DashboardRepository()
+    def __init__(self, user=None, repository: Optional[DashboardRepository] = None) -> None:
+        #: Non-admins get a dashboard scoped to defects they're involved in;
+        #: admins (and the anonymous/default case) see everything.
+        self.user = user
+        scoped_id = None if (user is None or getattr(user, "is_admin", False)) else user.id
+        self.repository = repository or DashboardRepository(scoped_id)
+        self.scoped_id = scoped_id
 
     def overview(self) -> "Dict[str, Any]":
         repo = self.repository
@@ -56,6 +61,10 @@ class DashboardService:
         today = repo.counts_today(local_day_start_utc())
 
         return {
+            "scope": {
+                "scoped": self.scoped_id is not None,
+                "name": self.user.full_name if self.user is not None else None,
+            },
             "tiles": self._tiles(open_total, closed_total, severity_open, today),
             "quick_filters": self._quick_filters(),
             "charts": {

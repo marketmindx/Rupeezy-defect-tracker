@@ -99,7 +99,7 @@
         </select>
       </div>
       <div class="col-md-3 col-xl-2">
-        <label class="form-label small text-body-secondary" for="developer">Developer</label>
+        <label class="form-label small text-body-secondary" for="developer">Assignee</label>
         <select class="form-select" id="developer" name="developer">
           <option value="">All</option>
           {% for u in developers %}
@@ -140,7 +140,8 @@
           {{ sort_th("Severity", "severity") }}
           {{ sort_th("Priority", "priority") }}
           <th>Status</th>
-          <th class="d-none d-lg-table-cell">Developer</th>
+          <th class="d-none d-lg-table-cell">Assignee</th>
+          <th class="d-none d-xl-table-cell">Strapi</th>
           {{ sort_th("Updated", "updated") }}
         </tr>
       </thead>
@@ -171,11 +172,21 @@
                  class="text-decoration-none text-reset">{{ defect.assigned_developer.full_name }}</a>
             {% else %}—{% endif %}
           </td>
+          <td class="d-none d-xl-table-cell">
+            {% if defect.strapi_ticket_id %}
+              <span class="badge text-bg-success"><i class="bi bi-check-lg me-1"></i>{{ defect.strapi_ticket_id }}</span>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-primary strapi-push-row-btn"
+                      data-defect-id="{{ defect.id }}" data-defect-title="{{ defect.title }}">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </button>
+            {% endif %}
+          </td>
           <td class="small text-body-secondary text-nowrap">{{ defect.updated_at | timeago }}</td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="8" class="text-center text-body-secondary py-5">
+          <td colspan="9" class="text-center text-body-secondary py-5">
             No defects match these filters.
             <a href="{{ url_for('defects.list_defects') }}">Clear filters</a>
           </td>
@@ -193,4 +204,24 @@
   </div>
   {% endif %}
 </div>
+
+{% include "partials/_strapi_push_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/strapi_push.js') }}"></script>
+<script>
+(() => {
+  document.querySelectorAll(".strapi-push-row-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.defectId);
+      window.StrapiPush.openForExisting(
+        id,
+        `Creating a Bug in Strapi for "${btn.dataset.defectTitle}".`,
+        () => window.location.reload()
+      );
+    });
+  });
+})();
+</script>
 {% endblock %}

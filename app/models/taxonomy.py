@@ -16,6 +16,7 @@ from app.extensions import db
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.agile import Story
     from app.models.defect import Defect
 
 
@@ -78,6 +79,9 @@ class Label(db.Model):
 
     defects: Mapped[List["Defect"]] = relationship(
         secondary="defect_labels", back_populates="labels", passive_deletes=True
+    )
+    stories: Mapped[List["Story"]] = relationship(
+        secondary="story_labels", back_populates="labels", passive_deletes=True
     )
 
     def __repr__(self) -> str:

@@ -6,7 +6,7 @@ Everything is imported (and re-exported) here so that:
 * callers can simply ``from app.models import Defect, DefectStatus``.
 """
 from app.models.activity import ActivityLog
-from app.models.agile import Epic, Sprint, Story
+from app.models.agile import Epic, Sprint, Story, story_labels
 from app.models.collaboration import Attachment, Comment
 from app.models.counters import KeyCounter
 from app.models.defect import Defect, defect_labels, defect_tags
@@ -57,4 +57,5 @@ __all__ = [
     "UserRole",
     "defect_labels",
     "defect_tags",
+    "story_labels",
 ]

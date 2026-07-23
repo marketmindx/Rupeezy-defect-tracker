@@ -229,6 +229,78 @@ class TestWorkflow:
         assert b'<option value="In Progress"' in page
         assert b'<option value="Verified"' not in page
 
+    def test_open_and_in_progress_can_close_directly(self, world) -> None:
+        service = DefectService()
+        opened = make_defect(world["qa"], world["module"])
+        in_progress = make_defect(world["qa"], world["module"])
+        db.session.commit()
+
+        service.change_status(actor=world["qa"], defect_id=opened.id, to_status=DefectStatus.CLOSED)
+        assert opened.status is DefectStatus.CLOSED
+
+        _walk(service, world["dev"], in_progress, DefectStatus.IN_PROGRESS)
+        service.change_status(actor=world["qa"], defect_id=in_progress.id, to_status=DefectStatus.CLOSED)
+        assert in_progress.status is DefectStatus.CLOSED
+
+    def test_close_syncs_linked_strapi_ticket_to_done(self, world, monkeypatch) -> None:
+        # Imported-from-Strapi defects carry the Strapi ticket_id as their
+        # own defect_key (see scripts/strapi_sync.py) — no separate push.
+        defect = make_defect(world["qa"], world["module"], defect_key="ADVA-4242")
+        db.session.commit()
+
+        calls = {}
+        monkeypatch.setattr(
+            "app.services.strapi_push.find_ticket",
+            lambda ticket_id: {"id": 55, "status": "In Progress"},
+        )
+
+        def fake_update(numeric_id, *, from_status, to_status, note):
+            calls["update"] = (numeric_id, from_status, to_status)
+
+        monkeypatch.setattr("app.services.strapi_push.update_ticket_status", fake_update)
+
+        DefectService().change_status(
+            actor=world["qa"], defect_id=defect.id, to_status=DefectStatus.CLOSED
+        )
+
+        assert calls["update"] == (55, "In Progress", "Done")
+        row = next(r for r in _rows(defect.id) if r.field == "strapi_status")
+        assert row.new_value == "Done"
+
+    def test_close_leaves_strapi_alone_when_not_todo_or_in_progress(self, world, monkeypatch) -> None:
+        defect = make_defect(world["qa"], world["module"], defect_key="ADVA-4243")
+        db.session.commit()
+
+        monkeypatch.setattr(
+            "app.services.strapi_push.find_ticket",
+            lambda ticket_id: {"id": 56, "status": "In Review"},
+        )
+        monkeypatch.setattr(
+            "app.services.strapi_push.update_ticket_status",
+            lambda *a, **k: pytest.fail("must not update a ticket that isn't To Do/In Progress"),
+        )
+
+        DefectService().change_status(
+            actor=world["qa"], defect_id=defect.id, to_status=DefectStatus.CLOSED
+        )
+        assert not any(r.field == "strapi_status" for r in _rows(defect.id))
+
+    def test_close_sync_failure_does_not_block_local_close(self, world, monkeypatch) -> None:
+        from app.integrations.strapi import StrapiError
+
+        defect = make_defect(world["qa"], world["module"], defect_key="ADVA-4244")
+        db.session.commit()
+
+        def raise_strapi_error(ticket_id):
+            raise StrapiError("boom")
+
+        monkeypatch.setattr("app.services.strapi_push.find_ticket", raise_strapi_error)
+
+        DefectService().change_status(
+            actor=world["qa"], defect_id=defect.id, to_status=DefectStatus.CLOSED
+        )
+        assert defect.status is DefectStatus.CLOSED
+
 
 class TestDelete:
     def test_admin_only(self, client, world) -> None:

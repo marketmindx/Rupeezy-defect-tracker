@@ -126,6 +126,11 @@ class Defect(TimestampMixin, db.Model):
         sa.ForeignKey("defects.id", ondelete="SET NULL")
     )
 
+    # -- Strapi push (one-way, tracker -> Strapi; set once a Bug ticket has
+    # been created there so the UI can prevent duplicate creation) -----------
+    strapi_ticket_id: Mapped[Optional[str]] = mapped_column(sa.String(20), index=True)
+    strapi_synced_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime)
+
     # -- relationships ----------------------------------------------------------
     module: Mapped["Module"] = relationship(back_populates="defects")
     feature: Mapped[Optional["Feature"]] = relationship(back_populates="defects")

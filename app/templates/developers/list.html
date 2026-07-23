@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Developers · {{ config.APP_NAME }}{% endblock %}
+{% block title %}Members · {{ config.APP_NAME }}{% endblock %}
 
 {% macro person_card(entry) %}
 {% set user = entry.user %}
@@ -12,8 +12,9 @@
         {{ user.full_name.split() | map('first') | join('') | upper | truncate(2, true, '', 0) }}
       </div>
       <div class="flex-grow-1 min-w-0">
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold text-truncate">{{ user.full_name }}</span>
+          {% if user.title %}<span class="badge rounded-pill text-bg-info">{{ user.title }}</span>{% endif %}
           {% if not user.is_active %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
         </div>
         <div class="small text-body-secondary mb-2">@{{ user.username }}</div>
@@ -34,7 +35,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-  <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Developers</h1>
+  <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Members</h1>
   {% if current_user.is_admin %}
   <a href="{{ url_for('users.list_users') }}" class="btn btn-outline-secondary btn-sm">
     <i class="bi bi-person-gear me-1"></i>Manage accounts
@@ -52,11 +53,20 @@
 </div>
 
 <h2 class="h6 text-body-secondary text-uppercase mb-3">QA team</h2>
-<div class="row g-3">
+<div class="row g-3 mb-4">
   {% for entry in qa_team %}
     {{ person_card(entry) }}
   {% else %}
   <div class="col-12"><p class="text-body-secondary">No QA accounts yet.</p></div>
+  {% endfor %}
+</div>
+
+<h2 class="h6 text-body-secondary text-uppercase mb-3">Product team</h2>
+<div class="row g-3">
+  {% for entry in product_managers %}
+    {{ person_card(entry) }}
+  {% else %}
+  <div class="col-12"><p class="text-body-secondary">No product managers yet.</p></div>
   {% endfor %}
 </div>
 {% endblock %}

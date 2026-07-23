@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/_badges.html" import status_badge, severity_badge, story_status_badge %}
+{% from "partials/_badges.html" import status_badge, severity_badge, story_status_badge, priority_badge %}
 
 {% block title %}Story tree · {{ config.APP_NAME }}{% endblock %}
 
@@ -75,6 +75,40 @@
           {% endif %}
         </div>
         <div class="collapse {{ 'show' if expanded }}" id="story-{{ story.id }}">
+          <div class="mt-2 ms-4 p-3 bg-body-tertiary rounded small">
+            <dl class="row mb-0">
+              <dt class="col-3 col-md-2">Description</dt>
+              <dd class="col-9 col-md-10" style="white-space: pre-wrap;">{{ story.description or "—" }}</dd>
+              <dt class="col-3 col-md-2">Assignee</dt>
+              <dd class="col-9 col-md-10">
+                {% if story.assignee %}
+                  <a href="{{ url_for('developers.profile', user_id=story.assignee_id) }}"
+                     class="text-decoration-none">{{ story.assignee.full_name }}</a>
+                {% else %}Unassigned{% endif %}
+              </dd>
+              <dt class="col-3 col-md-2">Reporter</dt>
+              <dd class="col-9 col-md-10">
+                {% if story.reporter %}
+                  <a href="{{ url_for('developers.profile', user_id=story.reporter_id) }}"
+                     class="text-decoration-none">{{ story.reporter.full_name }}</a>
+                {% else %}—{% endif %}
+              </dd>
+              <dt class="col-3 col-md-2">Priority</dt>
+              <dd class="col-9 col-md-10">{{ priority_badge(story.priority) if story.priority else "—" }}</dd>
+              <dt class="col-3 col-md-2">Labels</dt>
+              <dd class="col-9 col-md-10">
+                {% if story.labels %}
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for label in story.labels %}
+                      <span class="badge" style="background-color: {{ label.color }};">{{ label.name }}</span>
+                    {% endfor %}
+                  </div>
+                {% else %}—{% endif %}
+              </dd>
+              <dt class="col-3 col-md-2">Updated</dt>
+              <dd class="col-9 col-md-10">{{ story.updated_at | localdt }}</dd>
+            </dl>
+          </div>
           <div class="mt-2">
             {% for defect in defects %}
             <div class="d-flex align-items-center gap-2 ms-4 py-1 border-top small">

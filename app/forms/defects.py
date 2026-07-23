@@ -93,7 +93,7 @@ class DefectForm(FlaskForm):
     story_id = SelectField("Story", coerce=_opt_int)
     sprint_id = SelectField("Sprint", coerce=_opt_int)
     assigned_qa_id = SelectField("Assigned QA", coerce=_opt_int)
-    assigned_developer_id = SelectField("Assigned developer", coerce=_opt_int)
+    assigned_developer_id = SelectField("Assignee", coerce=_opt_int)
 
     eta = DateField("ETA", validators=[OptionalValidator()])
     regression_required = BooleanField("Regression required")
